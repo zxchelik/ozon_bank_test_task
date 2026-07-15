@@ -1,0 +1,44 @@
+# Environment and local secrets
+.env
+.env.*
+!.env.example
+
+# IDE and editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# AI assistants and agent files
+AGENTS.md
+.agents/
+.codex/
+.cursor/
+.windsurf/
+.claude/
+.aider*
+CLAUDE.md
+GEMINI.md
+.openai/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Go build artifacts
+bin/
+/shortener
+*.exe
+*.out
+*.test
+
+# Test coverage and profiling
+coverage.out
+coverage.html
+*.cover
+*.prof
+
+# Logs and temporary files
+*.log
+tmp/
+temp/

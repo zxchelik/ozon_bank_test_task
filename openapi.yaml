@@ -1,0 +1,269 @@
+openapi: 3.0.3
+info:
+  title: URL Shortener API
+  version: 1.0.0
+  description: API for creating, resolving, redirecting, and inspecting shortened links.
+servers:
+  - url: http://localhost:8080
+paths:
+  /links:
+    post:
+      summary: Create or get a short link
+      operationId: createLink
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateLinkRequest'
+      responses:
+        '201':
+          description: A new short link was created.
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/RequestID'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateLinkResponse'
+        '200':
+          description: The existing short link for this URL was returned.
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/RequestID'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateLinkResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /links/{code}:
+    parameters:
+      - $ref: '#/components/parameters/ShortCode'
+    get:
+      summary: Resolve a short code as JSON
+      description: Atomically increments access_count and updates last_accessed_at.
+      operationId: resolveLink
+      responses:
+        '200':
+          description: The original URL.
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/RequestID'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResolveLinkResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /links/{code}/stats:
+    parameters:
+      - $ref: '#/components/parameters/ShortCode'
+    get:
+      summary: Get link statistics
+      description: Does not change access_count or last_accessed_at.
+      operationId: getLinkStats
+      responses:
+        '200':
+          description: Link statistics.
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/RequestID'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LinkStats'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /r/{code}:
+    parameters:
+      - $ref: '#/components/parameters/ShortCode'
+    get:
+      summary: Redirect to the original URL
+      description: Atomically increments access_count and updates last_accessed_at.
+      operationId: redirectLink
+      responses:
+        '302':
+          description: Redirect to the original URL.
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/RequestID'
+            Location:
+              description: Original URL.
+              required: true
+              schema:
+                type: string
+                format: uri
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /healthz:
+    get:
+      summary: Liveness probe
+      operationId: health
+      responses:
+        '200':
+          description: Process is alive.
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/RequestID'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Status'
+  /readyz:
+    get:
+      summary: Readiness probe
+      operationId: readiness
+      responses:
+        '200':
+          description: Service can accept traffic.
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/RequestID'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Status'
+        '503':
+          description: Service is not ready.
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/RequestID'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /metrics:
+    get:
+      summary: In-process Prometheus metrics
+      operationId: metrics
+      responses:
+        '200':
+          description: Metrics in Prometheus text exposition format.
+          headers:
+            X-Request-ID:
+              $ref: '#/components/headers/RequestID'
+          content:
+            text/plain:
+              schema:
+                type: string
+components:
+  parameters:
+    ShortCode:
+      name: code
+      in: path
+      required: true
+      description: A 10-character short code.
+      schema:
+        type: string
+        minLength: 10
+        maxLength: 10
+        pattern: '^[a-zA-Z0-9_]{10}$'
+  headers:
+    RequestID:
+      description: Request correlation identifier, preserved when supplied by the client.
+      required: true
+      schema:
+        type: string
+  responses:
+    BadRequest:
+      description: Invalid JSON, URL, or short code.
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/RequestID'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: No link exists for the short code.
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/RequestID'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    InternalError:
+      description: Unexpected internal error.
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/RequestID'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+  schemas:
+    CreateLinkRequest:
+      type: object
+      additionalProperties: false
+      required: [url]
+      properties:
+        url:
+          type: string
+          format: uri
+          example: https://example.com/path
+    CreateLinkResponse:
+      type: object
+      required: [short_url, short_code]
+      properties:
+        short_url:
+          type: string
+          format: uri
+          example: http://localhost:8080/r/aB3_dE7fGh
+        short_code:
+          type: string
+          pattern: '^[a-zA-Z0-9_]{10}$'
+          example: aB3_dE7fGh
+    ResolveLinkResponse:
+      type: object
+      required: [url]
+      properties:
+        url:
+          type: string
+          format: uri
+    LinkStats:
+      type: object
+      required: [short_code, created_at, last_accessed_at, access_count]
+      properties:
+        short_code:
+          type: string
+          pattern: '^[a-zA-Z0-9_]{10}$'
+        created_at:
+          type: string
+          format: date-time
+        last_accessed_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Null until the first resolve or redirect.
+        access_count:
+          type: integer
+          format: int64
+          minimum: 0
+    Status:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
